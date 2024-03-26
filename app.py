@@ -112,8 +112,9 @@ def login():
 @app.route('/logout')
 def logout():
     """Handle logout of user."""
-
-    # IMPLEMENT THIS
+    session.pop(CURR_USER_KEY)
+    flash('Successfully Logged Out', 'success')
+    return redirect('/login')
 
 
 ##############################################################################
@@ -140,13 +141,15 @@ def list_users():
 def users_show(user_id):
     """Show user profile."""
 
+    if CURR_USER_KEY not in session or id != session[CURR_USER_KEY]:
+        flash('Unauthorized to make this request, please log in first', 'danger')
+        return redirect('/login')
+
     user = User.query.get_or_404(user_id)
 
     # snagging messages in order from the database;
     # user.messages won't be in order by default
-    messages = (Message
-                .query
-                .filter(Message.user_id == user_id)
+    messages = (Message.query.filter(Message.user_id == user_id)
                 .order_by(Message.timestamp.desc())
                 .limit(100)
                 .all())
@@ -210,7 +213,7 @@ def stop_following(follow_id):
 @app.route('/users/profile', methods=["GET", "POST"])
 def profile():
     """Update profile for current user."""
-
+    
     # IMPLEMENT THIS
 
 
