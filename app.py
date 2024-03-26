@@ -140,11 +140,11 @@ def list_users():
 @app.route('/users/<int:user_id>')
 def users_show(user_id):
     """Show user profile."""
-
-    if CURR_USER_KEY not in session or id != session[CURR_USER_KEY]:
-        flash('Unauthorized to make this request, please log in first', 'danger')
-        return redirect('/login')
-
+    
+    if not g.user:
+        flash("Access unauthorized.", "danger")
+        return redirect("/")
+    
     user = User.query.get_or_404(user_id)
 
     # snagging messages in order from the database;
@@ -213,8 +213,7 @@ def stop_following(follow_id):
 @app.route('/users/profile', methods=["GET", "POST"])
 def profile():
     """Update profile for current user."""
-    
-    # IMPLEMENT THIS
+
 
 
 @app.route('/users/delete', methods=["POST"])
