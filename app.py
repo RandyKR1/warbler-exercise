@@ -348,6 +348,26 @@ def add_like(message_id):
 
     return redirect("/")
 
+@app.route('/users/remove_like/<int:message_id>', methods=['POST'])
+def remove_like(message_id):
+    if not g.user:
+        flash("Access unauthorized.", "danger")
+        return redirect("/")
+
+    liked_message = Message.query.get_or_404(message_id)
+    user_likes = g.user.likes
+
+    #check to see if the liked_message is in user_likes
+    if liked_message in user_likes:
+        # Remove the liked message from the user's likes
+        g.user.likes.remove(liked_message)
+        db.session.commit()
+        flash("Like removed successfully.", "success")
+    else:
+        flash("You haven't liked this message.", "danger")
+
+    return redirect(f'/users/{ g.user.id }/likes')
+
 
 ##############################################################################
 # Homepage and error pages

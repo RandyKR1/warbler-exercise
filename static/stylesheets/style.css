@@ -390,6 +390,19 @@ p.card-bio {
   margin: 2em 10px 0;
 }
 
+.messages-like{
+  position: relative;
+  display: flex;
+  justify-content: end;
+}
+
+.message-link{
+  width: 75%;
+}
+
+.message-area{
+  width: 75%;
+}
 /* ============================ Signed out home */
 
 .home-hero {
