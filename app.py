@@ -18,7 +18,7 @@ app.config['SQLALCHEMY_DATABASE_URI'] = (
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_ECHO'] = False
-app.config['DEBUG_TB_INTERCEPT_REDIRECTS'] = True
+app.config['DEBUG_TB_INTERCEPT_REDIRECTS'] = False
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', "it's a secret")
 toolbar = DebugToolbarExtension(app)
 
@@ -28,13 +28,18 @@ connect_db(app)
 ##############################################################################
 # User signup/login/logout
 
-
-@app.before_request
+# Register a function to run before each request. Can be used to open a database connection, or to load the logged in user from the session.
+@app.before_request 
 def add_user_to_g():
     """If we're logged in, add curr user to Flask global."""
 
     if CURR_USER_KEY in session:
         g.user = User.query.get(session[CURR_USER_KEY])
+        # 'g' is often used to store user-specific data or other request-specific information that needs to be accessed across different parts of the application during a single request.
+        # Lots of extra work if we don't user 'g' such as:
+                # code duplication
+                # potential security risks 
+                # less consistent code
 
     else:
         g.user = None
@@ -302,6 +307,47 @@ def messages_destroy(message_id):
 
     return redirect(f"/users/{g.user.id}")
 
+# GET request to display liked messages
+@app.route('/users/<int:user_id>/likes', methods=["GET"])
+def show_likes(user_id):
+    # id user is not logged in, flash message and return to homepage
+    if not g.user: 
+        flash("Access unauthorized.", "danger")
+        return redirect("/")
+
+    # define user by querying user_id then render template passing the user object and likes associated with that user to that template
+    user = User.query.get_or_404(user_id)
+    return render_template('users/likes.html', user=user, likes=user.likes)
+
+# POST request to append newly liked messages
+@app.route('/users/add_like/<int:message_id>', methods=['POST'])
+def add_like(message_id):
+    
+    # id user is not logged in, flash message and return to homepage
+    if not g.user:
+        flash("Access unauthorized.", "danger")
+        return redirect("/")
+
+    #define liked message vairable by retrieving the message id.
+    liked_message = Message.query.get_or_404(message_id)
+    
+    
+    # if the user id of the message matches the logged in user id, flash message.
+    if liked_message.user_id == g.user.id:
+        flash("not allowed to like your own message silly", 'danger')
+        return redirect('/')
+
+    
+    user_likes = g.user.likes
+    if liked_message in user_likes:
+        g.user.likes = [like for like in user_likes if like != liked_message]
+    else:
+        g.user.likes.append(liked_message)
+
+    db.session.commit()
+
+    return redirect("/")
+
 
 ##############################################################################
 # Homepage and error pages
@@ -316,9 +362,13 @@ def homepage():
     """
 
     if g.user:
+        # first, set variable for the relationship between following ids and the user id
+        following_ids = [f.id for f in g.user.following] + [g.user.id] 
         messages = (Message
                     .query
-                    .order_by(Message.timestamp.desc())
+                    # then, we'll filter the query by finding the user id of the message and retrieving those that fit the 'following ids' relationship
+                    .filter(Message.user_id.in_(following_ids))
+                    .order_by(Message.timestamp.desc()) 
                     .limit(100)
                     .all())
 
