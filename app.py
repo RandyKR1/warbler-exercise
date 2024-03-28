@@ -363,8 +363,6 @@ def remove_like(message_id):
         g.user.likes.remove(liked_message)
         db.session.commit()
         flash("Like removed successfully.", "success")
-    else:
-        flash("You haven't liked this message.", "danger")
 
     return redirect(f'/users/{ g.user.id }/likes')
 
