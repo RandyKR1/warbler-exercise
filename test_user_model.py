@@ -10,21 +10,9 @@ from unittest import TestCase
 
 from models import db, User, Message, Follows
 
-# BEFORE we import our app, let's set an environmental variable
-# to use a different database for tests (we need to do this
-# before we import our app, since that will have already
-# connected to the database
-
-os.environ['DATABASE_URL'] = "postgresql:///warbler-test"
-
-
-# Now we can import app
+os.environ['DATABASE_URL'] = "postgresql:///warbler_test"
 
 from app import app
-
-# Create our tables (we do this here, so we only create the tables
-# once for all tests --- in each test, we'll delete the data
-# and create fresh new clean test data
 
 db.create_all()
 
@@ -38,7 +26,20 @@ class UserModelTestCase(TestCase):
         User.query.delete()
         Message.query.delete()
         Follows.query.delete()
-
+        
+        user1 = User.signup('user1test', 'ueser1test@email.com', 'user1passwordtest', None)
+        user1id = 11111
+        user1.id = user1id
+        
+        user2 = User.signup('user2test', 'ueser2test@email.com', 'user2passwordtest', None)
+        user2id = 22222
+        user2.id = user2id
+        
+        db.session.commit()
+        
+        self.user1 = user1
+        self.user2 = user2
+    
         self.client = app.test_client()
 
     def test_user_model(self):
@@ -56,3 +57,43 @@ class UserModelTestCase(TestCase):
         # User should have no messages & no followers
         self.assertEqual(len(u.messages), 0)
         self.assertEqual(len(u.followers), 0)
+        
+    
+    #test is_following / is_followed_by features
+        
+    def test_user_follows(self):
+        self.user1.following.append(self.user2)
+        db.session.commit()
+        
+        #can add more users in setup to test at higher numbers
+        self.assertEqual(len(self.user2.following), 0)
+        self.assertEqual(len(self.user2.followers), 1)
+        self.assertEqual(len(self.user1.following), 1)
+        self.assertEqual(len(self.user1.followers), 0)
+
+        #testing that ids are recognizable across users
+        self.assertEqual(self.user1.following[0].id, self.user2.id)
+        self.assertEqual(self.user2.followers[0].id, self.user1.id)
+        
+    def test_is_followed_by(self):
+        self.user1.followers.append(self.user2)
+        db.session.commit()
+        
+        self.assertTrue(self.user1.is_followed_by(self.user2))
+        self.assertFalse(self.user2.is_followed_by(self.user1))
+        
+    # Does is_following successfully detect when user1 is following user2?
+    # Does is_following successfully detect when user1 is not following user2?    
+    def test_is_following(self):
+        self.user1.followers.append(self.user2)
+        db.session.commit()
+        
+        self.assertFalse(self.user1.is_following(self.user2))
+        self.assertTrue(self.user2.is_following(self.user1))
+        
+        
+# Does User.create successfully create a new user given valid credentials?
+# Does User.create fail to create a new user if any of the validations (e.g. uniqueness, non-nullable fields) fail?
+# Does User.authenticate successfully return a user when given a valid username and password?
+# Does User.authenticate fail to return a user when the username is invalid?
+# Does User.authenticate fail to return a user when the password is invalid?
