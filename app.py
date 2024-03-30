@@ -323,7 +323,7 @@ def show_likes(user_id):
 @app.route('/users/add_like/<int:message_id>', methods=['POST'])
 def add_like(message_id):
     
-    # id user is not logged in, flash message and return to homepage
+    # if user is not logged in, flash message and return to homepage
     if not g.user:
         flash("Access unauthorized.", "danger")
         return redirect("/")

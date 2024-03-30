@@ -9,6 +9,8 @@ import os
 from unittest import TestCase
 
 from models import db, User, Message, Follows
+from sqlalchemy.exc import IntegrityError
+from psycopg2.errors import NotNullViolation
 
 os.environ['DATABASE_URL'] = "postgresql:///warbler_test"
 
@@ -90,10 +92,39 @@ class UserModelTestCase(TestCase):
         
         self.assertFalse(self.user1.is_following(self.user2))
         self.assertTrue(self.user2.is_following(self.user1))
-        
-        
+              
 # Does User.create successfully create a new user given valid credentials?
-# Does User.create fail to create a new user if any of the validations (e.g. uniqueness, non-nullable fields) fail?
-# Does User.authenticate successfully return a user when given a valid username and password?
-# Does User.authenticate fail to return a user when the username is invalid?
-# Does User.authenticate fail to return a user when the password is invalid?
+    def test_create_valid_user(self):
+        user_test = User.signup('testname', 'testemail@email.com', 'testpassword', None)
+        user_test_id = 123456
+        user_test.id = user_test_id
+        db.session.commit()
+        
+        self.assertEqual(user_test.username, 'testname')
+        self.assertEqual(user_test.email, 'testemail@email.com')
+        self.assertNotEqual(user_test.password, 'testpassword')
+        self.assertIsNotNone(user_test)
+        self.assertTrue(user_test.password.startswith('$2b$'))
+        
+    def test_invalid_password_signup(self):
+        with self.assertRaises(ValueError) as context:
+            User.signup("testtest", "email@email.com", "", None)
+        
+        with self.assertRaises(ValueError) as context:
+            User.signup("testtest", "email@email.com", None, None)
+        
+    # Testing authentication 
+    
+    def test_valid_authentication(self):
+        user = User.authenticate(self.user1.username, 'user1passwordtest')
+        
+        if user:
+            self.assertEqual(user.id, self.user1.id)
+        else:
+            self.fail("Authentication failed")
+    
+    def test_invalid_username(self):
+        self.assertFalse(User.authenticate("wrong", "user1passwordtest"))
+
+    def test_wrong_password(self):
+        self.assertFalse(User.authenticate(self.user1.username, "wrongpassword"))
