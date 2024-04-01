@@ -48,8 +48,20 @@ class MessageViewTestCase(TestCase):
                                     email="test@test.com",
                                     password="testuser",
                                     image_url=None)
+        self.testuser_id = 8989
+        self.testuser.id = self.testuser_id
+        
+        self.unauth_user = User.signup(username="unauthorized-user",
+                        email="testtest@test.com",
+                        password="password",
+                        image_url=None)
+        self.unauth_user.id = 76543
 
         db.session.commit()
+    
+    def login(self, user):
+        with self.client.session_transaction() as session:
+            session[CURR_USER_KEY] = user.id
 
     def test_add_message(self):
         """Can use add a message?"""
@@ -71,3 +83,41 @@ class MessageViewTestCase(TestCase):
 
             msg = Message.query.one()
             self.assertEqual(msg.text, "Hello")
+
+    def test_message_delete(self):
+
+        m = Message(
+            id=1234,
+            text="a test message",
+            user_id=self.testuser.id
+        )
+        db.session.add(m)
+        db.session.commit()
+
+        with self.client as c:
+            with c.session_transaction() as sess:
+                sess[CURR_USER_KEY] = self.testuser.id
+
+            resp = c.post("/messages/1234/delete", follow_redirects=True)
+            self.assertEqual(resp.status_code, 200)
+
+            m = Message.query.get(1234)
+            self.assertIsNone(m)
+            
+    def test_message_delete_no_authentication(self):
+
+        m = Message(
+            id=1234,
+            text="a test message",
+            user_id=self.testuser.id
+        )
+        db.session.add(m)
+        db.session.commit()
+
+        with self.client as c:
+            resp = c.post("/messages/1234/delete", follow_redirects=True)
+            self.assertEqual(resp.status_code, 200)
+            self.assertIn("Access unauthorized", str(resp.data))
+
+            m = Message.query.get(1234)
+            self.assertIsNotNone(m)
